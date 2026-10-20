@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { ServiceIcon, SERVICE_TONES } from "@/components/service-icon";
 import { btnGhost, btnPrimary } from "@/components/ui";
 import { digitsOnly, pad, rupiah } from "@/lib/format";
+import { saveOrder, updateOrderStatus } from "@/lib/order-store";
 
 export type CheckoutOrder = {
   layanan: string;
@@ -66,11 +67,12 @@ export function CheckoutFlow({ order }: { order: CheckoutOrder }) {
     if (payState !== "checking") return;
     if (checkStep >= CHECK_STEPS.length) {
       setPayState("accepted");
+      if (invoice) updateOrderStatus(invoice, "selesai");
       return;
     }
     const timer = window.setTimeout(() => setCheckStep((value) => value + 1), 2600);
     return () => window.clearTimeout(timer);
-  }, [payState, checkStep]);
+  }, [payState, checkStep, invoice]);
 
   const numberValid = digitsOnly(number).length >= 6;
 
@@ -79,7 +81,21 @@ export function CheckoutFlow({ order }: { order: CheckoutOrder }) {
     const now = new Date();
     const stamp = `${String(now.getFullYear()).slice(2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
     const serial = String(Math.floor(Math.random() * 900) + 100);
-    setInvoice(`NXS-${stamp}-${serial}`);
+    const code = `NXS-${stamp}-${serial}`;
+
+    // Simpan pesanan supaya invoice-nya bisa langsung dicek di halaman Cek Transaksi.
+    saveOrder({
+      invoice: code,
+      status: "menunggu",
+      service: order.produk,
+      customer: number,
+      amount: order.total,
+      method: "QRIS",
+      channel: "QRIS (scan)",
+      createdAt: now.toISOString(),
+    });
+
+    setInvoice(code);
     setRemaining(15 * 60);
     setStep(3);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -469,17 +485,24 @@ export function CheckoutFlow({ order }: { order: CheckoutOrder }) {
               ) : null}
 
               <div className="flex flex-col gap-2.5 border-t border-line px-5 py-4 sm:flex-row sm:px-6">
+                <Link
+                  href={`/cek-transaksi?nomor=${invoice}`}
+                  className={`${btnPrimary} flex-1`}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M3 12a9 9 0 1 0 3-6.7" />
+                    <path d="M3 4v4h4" />
+                  </svg>
+                  Cek pesanan saya
+                </Link>
                 <a
                   href="https://wa.me/6281200000000"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`${btnPrimary} flex-1`}
+                  className={`${btnGhost} flex-1`}
                 >
                   Hubungi 0812-0000-0000
                 </a>
-                <Link href="/cek-transaksi" className={`${btnGhost} flex-1`}>
-                  Cek status transaksi
-                </Link>
               </div>
 
               <div className="border-t border-line px-5 py-4 sm:px-6">

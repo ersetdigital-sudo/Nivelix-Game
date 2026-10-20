@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { btnPrimary } from "@/components/ui";
 import type { Order, OrderStatus } from "@/lib/orders";
+import { findLocalOrder } from "@/lib/order-store";
 import { rupiah } from "@/lib/format";
 
 type Status = OrderStatus;
@@ -45,6 +46,23 @@ export function OrderStatus({ variant = "panel" }: { variant?: "panel" | "inline
     setError(null);
     setLoading(true);
     try {
+      // pesanan yang dibuat di perangkat ini
+      const local = findLocalOrder(value);
+      if (local) {
+        setOrder({
+          invoice: local.invoice,
+          status: local.status,
+          item: local.service,
+          number: local.customer,
+          total: local.amount,
+          method: local.method,
+          channel: local.channel,
+          createdAt: local.createdAt,
+        });
+        setNotFound(false);
+        return;
+      }
+
       const response = await fetch(`/api/orders/${encodeURIComponent(value)}`, {
         headers: { accept: "application/json" },
       });

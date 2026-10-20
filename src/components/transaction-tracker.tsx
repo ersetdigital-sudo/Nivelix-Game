@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Check,
@@ -12,6 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import type { Order, OrderStatus } from "@/lib/orders";
+import { findLocalOrder } from "@/lib/order-store";
 import { rupiah } from "@/lib/format";
 
 type Status = OrderStatus;
@@ -72,8 +73,8 @@ function formatWaktu(iso: string) {
   }
 }
 
-export function TransactionTracker() {
-  const [invoice, setInvoice] = useState("");
+export function TransactionTracker({ initialInvoice = "" }: { initialInvoice?: string }) {
+  const [invoice, setInvoice] = useState(initialInvoice);
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -91,6 +92,24 @@ export function TransactionTracker() {
     setError(null);
     setLoading(true);
     try {
+      // 1) pesanan yang dibuat di perangkat ini (checkout)
+      const local = findLocalOrder(code);
+      if (local) {
+        setOrder({
+          invoice: local.invoice,
+          status: local.status,
+          item: local.service,
+          number: local.customer,
+          total: local.amount,
+          method: local.method,
+          channel: local.channel,
+          createdAt: local.createdAt,
+        });
+        setNotFound(false);
+        return;
+      }
+
+      // 2) server
       const response = await fetch(`/api/orders/${encodeURIComponent(code)}`, {
         headers: { accept: "application/json" },
       });
@@ -124,6 +143,13 @@ export function TransactionTracker() {
       setCopied(false);
     }
   }
+
+  // Kalau datang dari halaman checkout (?nomor=...), langsung periksa otomatis.
+  useEffect(() => {
+    if (!initialInvoice) return;
+    void lookup(initialInvoice);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialInvoice]);
 
   const meta = order ? STATUS_META[order.status] : null;
   const reach = order ? REACH[order.status] : 0;

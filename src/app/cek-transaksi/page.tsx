@@ -9,7 +9,11 @@ export const metadata: Metadata = {
     "Lacak status pesanan Nivelix Game lewat nomor invoice: status pembayaran, progres pengiriman, dan detail transaksi.",
 };
 
-export default function CheckTransactionPage() {
+export default async function CheckTransactionPage(props: PageProps<"/cek-transaksi">) {
+  const params = await props.searchParams;
+  const raw = Array.isArray(params.nomor) ? params.nomor[0] : params.nomor;
+  const initialInvoice = raw?.trim().toUpperCase() ?? "";
+
   return (
     <div className="mx-auto w-full max-w-[1180px] px-4 py-8 sm:px-6 lg:py-12">
       <nav
@@ -60,7 +64,7 @@ export default function CheckTransactionPage() {
       </section>
 
       <div className="mt-6">
-        <TransactionTracker />
+        <TransactionTracker initialInvoice={initialInvoice} />
       </div>
     </div>
   );
